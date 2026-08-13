@@ -1,0 +1,20 @@
+Policy definition:
+
+A medication is ANTICOAGULANT if its primary action is to inhibit the
+coagulation cascade -- vitamin K antagonists, direct oral anticoagulants
+(factor Xa and direct thrombin inhibitors), heparins including low molecular
+weight heparins, and related parenteral anticoagulants.
+
+Antiplatelet agents are NOT anticoagulants for this policy; they are a distinct
+pharmacological class. Agents that reverse anticoagulation, or that promote
+clot stability, are also OTHER.
+
+Medication name under review: {{ item.name | default("(empty)", true) }}
+
+Fixture expected:  {{ expected.medication_class }}
+Classifier said:   {{ actual.medication_class }}
+{% if note %}
+Fixture note: {{ note }}
+{% endif %}
+
+Which is right?

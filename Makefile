@@ -4,7 +4,11 @@ REPORT ?= data/eval_report.json
 DETERMINISM_REPORT ?= data/determinism_report.json
 MODEL ?= gpt-4.1-mini
 
-.PHONY: baseline evals determinism score report test all clean
+CLASSIFIER_REPORT ?= data/classifier_eval_report.json
+EVAL_WORKERS ?= 12
+EVAL_BATCH_SIZE ?= 8
+
+.PHONY: baseline evals determinism score report test all clean classifier-evals fixtures
 
 baseline:
 	uv run run_baseline.py \
@@ -38,6 +42,21 @@ test:
 		--with 'pydantic>=2.8.0' \
 		--with 'pytest>=8.0.0' \
 		python -m pytest tests
+
+# Evaluates the document and medication classifiers against labelled fixtures
+# with real model calls. Ambiguous fixtures and any mismatch are arbitrated by
+# the judge model; everything else is a plain assertion.
+classifier-evals:
+	uv run evals/run_classifier_evals.py \
+		--suite all \
+		--report $(CLASSIFIER_REPORT) \
+		--workers $(EVAL_WORKERS) \
+		--batch-size $(EVAL_BATCH_SIZE)
+
+# Regenerates the document fixtures from the sample data. Review the diff:
+# this is a labelling heuristic, not an oracle.
+fixtures:
+	uv run evals/build_fixtures.py
 
 all: baseline evals determinism score
 

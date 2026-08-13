@@ -34,9 +34,12 @@ from rules.base import (
     DocumentRole,
     MedicationClass,
 )
+from rules.model_config import (
+    ModelConfig,
+    document_classifier_config,
+    medication_classifier_config,
+)
 from rules.prompts import render
-
-CLASSIFIER_MODEL = "gpt-4.1-mini"
 
 SYSTEM_TEMPLATE = "document_classifier_system.j2"
 USER_TEMPLATE = "document_classifier_user.j2"
@@ -81,7 +84,7 @@ ResultT = TypeVar("ResultT", bound=BaseModel)
 
 def _structured_call(
     *,
-    model: str,
+    config: ModelConfig,
     instructions: str,
     prompt: str,
     text_format: type[ResultT],
@@ -100,9 +103,9 @@ def _structured_call(
 
     client = OpenAI()
     response = client.responses.parse(
-        model=model,
+        model=config.model,
         instructions=instructions,
-        temperature=0,
+        **config.request_kwargs(),
         input=[
             {
                 "type": "message",
@@ -169,8 +172,8 @@ class LLMDocumentClassifier:
     and returns an identical labelling every time.
     """
 
-    def __init__(self, *, model: str = CLASSIFIER_MODEL) -> None:
-        self.model = model
+    def __init__(self, *, config: ModelConfig | None = None) -> None:
+        self.config = config or document_classifier_config()
         self._cache: dict[str, list[ClassifiedDocumentModel]] = {}
 
     def __call__(self, documents: list[Document]) -> list[ClassifiedDocumentModel]:
@@ -179,13 +182,13 @@ class LLMDocumentClassifier:
 
         prompt = build_classifier_user_prompt(documents)
         cache_key = hashlib.sha256(
-            f"{self.model}\n{prompt}".encode("utf-8")
+            f"{self.config}\n{prompt}".encode("utf-8")
         ).hexdigest()
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         result = _structured_call(
-            model=self.model,
+            config=self.config,
             instructions=build_classifier_system_prompt(),
             prompt=prompt,
             text_format=DocumentClassificationResult,
@@ -260,33 +263,48 @@ class LLMMedicationClassifier:
     dataset run this collapses to one call per distinct unknown name.
     """
 
-    def __init__(self, *, model: str = CLASSIFIER_MODEL) -> None:
-        self.model = model
+    def __init__(self, *, config: ModelConfig | None = None) -> None:
+        self.config = config or medication_classifier_config()
         self._cache: dict[str, MedicationClass] = {}
+
+    @staticmethod
+    def _echo_key(name: str) -> str:
+        """Key for matching a returned name back to the one we asked about.
+
+        The model echoes names as text, and reliably normalises surrounding
+        whitespace and casing while doing so. Matching on the raw string drops
+        those answers on the floor and reports the drug as unclassifiable, so
+        the comparison is normalised on both sides.
+        """
+
+        return " ".join(name.split()).casefold()
 
     def __call__(self, names: list[str]) -> list[ClassifiedMedicationModel]:
         if not names:
             return []
 
-        pending = sorted({name for name in names if name not in self._cache})
+        pending = sorted({name for name in names if self._echo_key(name) not in self._cache})
         if pending:
             result = _structured_call(
-                model=self.model,
+                config=self.config,
                 instructions=build_medication_system_prompt(),
                 prompt=build_medication_user_prompt(pending),
                 text_format=MedicationClassificationResult,
             )
-            requested = set(pending)
+            requested = {self._echo_key(name) for name in pending}
             for item in result.classifications:
-                if item.name in requested:
-                    self._cache[item.name] = item.medication_class
+                key = self._echo_key(item.name)
+                if key in requested:
+                    self._cache[key] = item.medication_class
 
         # A name the model declined to return is left unresolved rather than
         # defaulted to OTHER; `resolve_medications` turns that into UNKNOWN.
         return [
-            ClassifiedMedicationModel(name=name, medication_class=self._cache[name])
+            ClassifiedMedicationModel(
+                name=name, medication_class=self._cache[self._echo_key(name)]
+            )
             for name in names
-            if name in self._cache
+            if self._echo_key(name) in self._cache
         ]
 
 
