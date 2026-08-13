@@ -10,15 +10,12 @@
 
 """Evaluate the classifiers against labelled fixtures, with real model calls.
 
-Most fixtures are plain assertions: the expected label is not in doubt, so a
-mismatch is a failure and no judge is involved. Only fixtures marked
-`"judge": true`, and any case where the classifier disagrees with an asserted
-label, are sent to the judge model -- the first because a single answer would
-be dishonest, the second to distinguish a genuine defect from a fixture whose
-label deserves revisiting.
+Most fixtures are plain assertions and never involve the judge. Only fixtures
+marked `"judge": true` and any mismatch are sent to it -- the first because a
+single asserted answer would be dishonest, the second to tell a genuine defect
+from a fixture whose label deserves revisiting.
 
-Batches run concurrently. Everything here is evaluation tooling; nothing in
-this module is imported by the triage path.
+Evaluation tooling; nothing here is imported by the triage path.
 
     uv run evals/run_classifier_evals.py --suite all
 """
@@ -101,9 +98,7 @@ class Outcome:
     def accepted(self) -> bool:
         if self.error is not None:
             return False
-        # Agreement with the fixture stands on its own. A case flagged
-        # ambiguous is still sent to the judge for the record, but the judge
-        # cannot overturn a label the classifier and fixture already share.
+        # The judge cannot overturn a label the classifier and fixture share.
         if self.matched:
             return True
         return self.verdict in ACCEPTABLE
@@ -128,8 +123,8 @@ def run_documents(cases: list[dict], *, batch_size: int, workers: int) -> list[O
             )
             for case in batch
         ]
-        # A fresh classifier per batch: caches would never hit across distinct
-        # batches, and this sidesteps sharing mutable state between threads.
+        # Fresh per batch: caches never hit across batches, and this avoids
+        # sharing mutable state between threads.
         classifier = LLMDocumentClassifier()
         try:
             # Refs are 1-based positions in the batch we sent.
@@ -236,11 +231,7 @@ def _normalise_medication(result: ClassifiedMedicationModel | None) -> dict:
 
 
 def apply_judge(outcomes: list[Outcome], *, template: str, workers: int) -> None:
-    """Judge the cases that warrant it, in place.
-
-    Two populations reach the judge: fixtures flagged ambiguous at authoring
-    time, and any mismatch against an asserted label.
-    """
+    """Judge the cases that warrant it, in place."""
 
     pending = [
         o
@@ -278,10 +269,8 @@ def summarise(name: str, outcomes: list[Outcome], config) -> dict:
     exact = sum(1 for o in outcomes if o.matched)
     accepted = sum(1 for o in outcomes if o.accepted)
     errors = [o for o in outcomes if o.error]
-    # Cases where the classifier matched the fixture but the judge thinks the
-    # fixture itself is wrong. These pass -- the classifier did what was asked
-    # -- but a silently mislabelled fixture is the worst failure an eval suite
-    # can have, so they are surfaced for review rather than left in the JSON.
+    # Classifier matched but the judge thinks the fixture is wrong. These pass,
+    # but a silently mislabelled fixture is the worst failure a suite can have.
     disputed = [
         o
         for o in outcomes

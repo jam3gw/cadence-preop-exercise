@@ -20,12 +20,12 @@ from __future__ import annotations
 
 from core import (
     DOCUMENTS_SOURCE,
-    describe_present,
     ClassifiedDocument,
     ClassifiedMedication,
     RuleContext,
     TriageIssue,
     build_issue,
+    describe_present,
     most_recent,
 )
 
@@ -47,12 +47,8 @@ def evaluate(ctx: RuleContext) -> list[TriageIssue]:
 def _evaluate_unknown_status(ctx: RuleContext) -> list[TriageIssue]:
     """Report anticoagulants whose `active` status is unknown.
 
-    The plan requirement is scoped to patients *currently* taking an
-    anticoagulant, so a null `active` does not trigger it -- we do not demand a
-    perioperative plan for a drug we cannot confirm the patient takes. But not
-    knowing is itself a gap: `active` is a field the rule turns on, and the
-    policy's default for a required field being missing or unknown is
-    NEEDS_FOLLOW_UP. Someone has to ask the patient.
+    A null `active` does not trigger the plan requirement -- we do not demand a
+    plan for a drug we cannot confirm -- but not knowing is itself a gap.
     """
 
     return [
@@ -73,9 +69,8 @@ def _evaluate_unknown_status(ctx: RuleContext) -> list[TriageIssue]:
 def _evaluate_unidentified(ctx: RuleContext) -> list[TriageIssue]:
     """Report active medications nothing could classify.
 
-    Whether the patient is on an anticoagulant is the field this rule turns on,
-    so a drug neither the reference list nor the model could identify leaves the
-    rule genuinely unevaluable -- NEEDS_FOLLOW_UP by the policy's own default.
+    This rule turns on whether the patient is on an anticoagulant, so an
+    unidentifiable drug leaves it unevaluable.
     """
 
     unidentified = ctx.active_medications_of_class("UNKNOWN")
@@ -94,8 +89,7 @@ def _evaluate_unidentified(ctx: RuleContext) -> list[TriageIssue]:
 
 
 def _evaluate_plan(ctx: RuleContext) -> list[TriageIssue]:
-    # The rule is scoped to patients *currently* taking an anticoagulant, so a
-    # medication recorded as inactive or unconfirmed does not trigger it.
+    # Scoped to patients *currently* taking an anticoagulant.
     anticoagulants = ctx.active_medications_of_class("ANTICOAGULANT")
     if not anticoagulants:
         return []
@@ -114,9 +108,8 @@ def _evaluate_plan(ctx: RuleContext) -> list[TriageIssue]:
             )
         ]
 
-    # A plan only clears the rule if it actually says how the medication is
-    # handled. "Incomplete or ambiguous" is a follow-up under the policy, and an
-    # undeterminable plan (`None`) is ambiguous by definition.
+    # An undeterminable plan (`None`) is ambiguous, which the policy treats as
+    # a follow-up.
     if any(plan.plan_is_clear is True for plan in plans):
         return []
 
@@ -145,11 +138,7 @@ def _unclear_plan_details(
 
 
 def _medication_phrase(anticoagulants: list[ClassifiedMedication]) -> str:
-    """Name the medications that triggered the rule, with their evidence paths.
-
-    Naming both the drug and its index keeps the issue traceable back to the
-    submission without the reader having to guess which entry was meant.
-    """
+    """Name the medications that triggered the rule, with their evidence paths."""
 
     parts = [
         f"{med.medication.name or 'unnamed medication'} ({med.source})"

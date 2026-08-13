@@ -201,16 +201,12 @@ def triage_output_json_schema() -> dict[str, object]:
 # Rule evaluation primitives
 # -------------------------
 #
-# A rule is a pure function over a `RuleContext`: it never touches the network
-# and never mutates its input. Every judgement needing a language model happens
-# once, up front, in `rules.classifiers`, and lands here as a small enum label.
-#
-# These live in this module rather than under `rules/` so that the dependency
-# runs one way: every rule module imports from core, and core never imports a
-# rule module at import time.
+# A rule is a pure function over a `RuleContext`. These live here rather than
+# under `rules/` so the dependency runs one way: rules import core, and core
+# imports rule modules only inside the functions that call them.
 
-# The roles the policy actually cares about. `documents[].type` is free text, so
-# this enum is the stable vocabulary every rule works against.
+# `documents[].type` is free text, so this enum is the stable vocabulary every
+# rule works against.
 DocumentRole = Literal[
     "H_AND_P",
     "SURGICAL_CONSENT",
@@ -218,12 +214,9 @@ DocumentRole = Literal[
     "OTHER",
 ]
 
-# Whether a medication is an anticoagulant for the purposes of Rule 3. Resolved
-# from `rules.medications` where possible, and only otherwise from a model.
-# UNKNOWN is not a failure mode to be swallowed: a drug nobody could classify is
-# reported rather than assumed harmless, because the two errors are not
-# symmetric -- a spurious follow-up is an inconvenience, a missed
-# anticoagulation plan is a patient safety event.
+# Resolved from `rules.medications` where possible, otherwise from a model.
+# UNKNOWN is reported rather than assumed harmless: a spurious follow-up is an
+# inconvenience, a missed anticoagulation plan is a safety event.
 MedicationClass = Literal["ANTICOAGULANT", "OTHER", "UNKNOWN"]
 
 # Evidence paths are dotted/indexed paths into the submission payload.
@@ -268,10 +261,8 @@ class ClassifiedDocument:
 class LabRef:
     """A lab result paired with its position in the submission.
 
-    Unlike `documents[].type`, `labs[].code` is a machine-generated value from a
-    controlled vocabulary, so rules match on it directly rather than asking a
-    model what a result is. `display` is the free-text field and is not used for
-    matching.
+    `labs[].code` is a controlled vocabulary, so rules match on it directly.
+    `display` is the free-text field and is not used for matching.
     """
 
     index: int
@@ -298,11 +289,9 @@ class LabRef:
 class VitalRef:
     """A vital sign paired with its position in the submission.
 
-    `vitals[].type` is a machine-generated discriminator, so it is matched
-    directly. Measurement fields are read with `getattr` rather than by
-    isinstance: the `Vital` union resolves a reading missing its values to
-    `GenericVital`, and a rule should see that as an absent measurement rather
-    than crash on the wrong branch of the union.
+    Measurement fields are read with `getattr` rather than by isinstance: the
+    `Vital` union resolves a reading missing its values to `GenericVital`,
+    which a rule should see as an absent measurement, not the wrong branch.
     """
 
     index: int
@@ -345,17 +334,8 @@ class ClassifiedMedication:
     def is_active(self) -> bool:
         """Whether the patient is recorded as currently taking this.
 
-        Requires an explicit `True`. Assumption: a source system that considers
-        a medication current says so affirmatively, and some systems express
-        "no longer taking" by clearing the flag rather than setting it false --
-        so a null is read as absence of an active prescription, not as a
-        mystery.
-
-        Reading a null as active instead would be the more cautious rule in
-        isolation, but it is not free: it demands a perioperative plan for
-        every stale medication row, and the resulting noise is its own safety
-        problem. The unknown status is not swallowed either way -- Rule 3
-        reports it as MISSING_REQUIRED_DATA, so a human still confirms it.
+        Requires an explicit `True`; a null reads as inactive. Rule 3 still
+        reports a null as MISSING_REQUIRED_DATA, so it is never just dropped.
         """
 
         return self.medication.active is True
@@ -421,10 +401,8 @@ class Rule(Protocol):
 def parse_date(value: str | None) -> date | None:
     """Parse a submission date field into a calendar date.
 
-    Handles both shapes present in submissions: bare dates (`2026-03-01`) on
-    documents and RFC 3339 timestamps (`2026-03-01T09:05:00Z`) on labs and
-    vitals. Anything unparseable is treated as absent, which drives the rule
-    toward NEEDS_FOLLOW_UP rather than a false pass.
+    Handles bare dates and RFC 3339 timestamps. Anything unparseable is treated
+    as absent, which drives the rule toward follow-up rather than a false pass.
     """
 
     if not value:
@@ -448,15 +426,10 @@ def parse_date(value: str | None) -> date | None:
 def parse_timestamp(value: str | None) -> datetime | None:
     """Parse a submission date field into an instant, for ordering.
 
-    `parse_date` deliberately returns a calendar date, because the policy's
-    windows are counted in days and the issue prose quotes those day counts.
-    Ordering is a different job: labs and vitals carry real timestamps
-    (`2026-02-24T10:12:00Z`), and collapsing those to a date makes two readings
-    on the same day tie, which would silently pick whichever came first in the
-    list rather than the most recent one.
-
-    Bare dates are anchored to midnight UTC so that naive and aware values
-    remain mutually comparable.
+    Separate from `parse_date` because collapsing a timestamp to a date makes
+    two readings on the same day tie, silently picking whichever came first in
+    the list. Bare dates anchor to midnight UTC so naive and aware values stay
+    comparable.
     """
 
     if not value:
@@ -520,9 +493,8 @@ def most_recent_vital(vitals: list[VitalRef]) -> VitalRef | None:
 def describe_present(entries: list[str], *, noun: str, limit: int = 5) -> str:
     """Render a short inventory of what the submission does contain.
 
-    An issue reporting something absent has no value of its own to quote, which
-    leaves a reader unable to tell a genuinely empty chart from a lookup that
-    missed. Naming what *is* on file answers that, and points at what to check.
+    An issue reporting something absent has no value of its own to quote, so
+    naming what *is* on file distinguishes an empty chart from a missed lookup.
     """
 
     if not entries:
@@ -550,8 +522,7 @@ def build_issue(
 # Decision assembly
 # -------------------------
 
-# Rules are evaluated in policy order, and their issues are reported in that
-# order. Only the acute safety rule can push the decision past follow-up.
+# Only the acute safety rule can push the decision past follow-up.
 BLOCKING_CATEGORY: IssueCategory = "ACUTE_SAFETY_EXCLUSION"
 
 READY_EXPLANATION = (
@@ -565,10 +536,8 @@ PROCEDURE_DATE_SOURCE = "procedure.procedure_date"
 def _missing_core_data(ctx: RuleContext) -> list[TriageIssue]:
     """Report submission-level fields that several rules depend on.
 
-    Only the procedure date lives here. Every window in Rules 1 and 2 is
-    measured against it, so those rules stop rather than each reporting the
-    same root cause; this reports it once. `procedure_risk` is not here --
-    it belongs to Rule 2 alone, which owns it.
+    Only the procedure date. Rules 1 and 2 both measure windows against it and
+    stop when it is absent, so it is reported here once rather than by each.
     """
 
     if ctx.procedure_date is not None:
@@ -586,9 +555,7 @@ def _missing_core_data(ctx: RuleContext) -> list[TriageIssue]:
 def decide(issues: list[TriageIssue]) -> Decision:
     """Derive the clearance status from the issues found.
 
-    Severity follows from category rather than from any rule asserting it: an
-    acute safety exclusion precludes surgery, anything else outstanding is a
-    follow-up, and a clean submission is ready.
+    Severity follows from category, not from any rule asserting it.
     """
 
     if any(issue.category == BLOCKING_CATEGORY for issue in issues):
@@ -612,8 +579,7 @@ def build_context(
 ) -> RuleContext:
     """Resolve everything model-backed, once, before any rule runs.
 
-    Both classifiers are injectable so the rules can be exercised without an
-    API key; passing neither uses the configured models.
+    Both classifiers are injectable so rules can be exercised without an API key.
     """
 
     # Imported here rather than at module scope: `rules` depends on this
@@ -649,16 +615,11 @@ def triage_submission(
 ) -> TriageOutput:
     """Triage one submission package against the pre-operative policy.
 
-    Interpretation happens once, up front: document roles and medication
-    classes are resolved into small enum labels. Every rule below is then a
-    pure function over those labels, and all issue prose is templated in
-    Python rather than generated, so the same submission produces the same
-    bytes on every run.
+    Interpretation happens once up front; every rule below is a pure function
+    over the resulting labels, with all issue prose templated in Python.
 
-    `model`, when given, overrides both classifiers with a single model id.
-    It exists for the harness's `--model` flag; leaving it unset uses the
-    per-task configuration in `rules.model_config`, which is what the
-    classifiers were tuned against.
+    `model` overrides both classifiers with a single id, for the harness's
+    `--model` flag. Unset uses the per-task config in `rules.model_config`.
     """
 
     from rules.acute_safety import evaluate as evaluate_acute_safety

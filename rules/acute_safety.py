@@ -58,17 +58,14 @@ def _evaluate_blood_pressure(ctx: RuleContext) -> list[TriageIssue]:
     if systolic is None and diastolic is None:
         return [_missing(BLOOD_PRESSURE, "Missing latest blood pressure")]
 
-    # A single reading yields a single finding even when both numbers breach:
-    # it is one exclusion, evidenced by one vital.
+    # One reading yields one finding even when both numbers breach.
     breached = (systolic is not None and systolic >= SYSTOLIC_THRESHOLD) or (
         diastolic is not None and diastolic >= DIASTOLIC_THRESHOLD
     )
     if not breached:
         return []
 
-    # The reading's date is part of the evidence, not decoration: these
-    # patients carry several blood pressures, and "systolic=184" alone does not
-    # say which one the exclusion was drawn from.
+    # The date is evidence, not decoration: patients carry several readings.
     return [
         build_issue(
             CATEGORY,
@@ -111,9 +108,8 @@ def _evaluate_temperature(ctx: RuleContext) -> list[TriageIssue]:
 def _missing(vital_type: str, description: str) -> TriageIssue:
     """Report a vital the rule needs but cannot read.
 
-    Rule 4 can only rule an exclusion *out* by looking at the measurement, so an
-    absent or unusable vital leaves it unevaluated rather than satisfied -- the
-    policy's default for a required field being missing or unknown.
+    An exclusion can only be ruled *out* by reading the measurement, so an
+    unusable vital leaves the rule unevaluated rather than satisfied.
     """
 
     return build_issue(
@@ -132,11 +128,7 @@ def _measured_on(ref: VitalRef) -> str:
 
 
 def _format(value: float | int | None) -> str:
-    """Render a measurement exactly as recorded.
-
-    No normalising of `101.0` to `101`: evidence quotes a measurement, and a
-    reader comparing the issue against the submission should see the same value
-    in both places.
-    """
+    """Render a measurement exactly as recorded, without normalising `101.0`
+    to `101` -- evidence should read the same as the submission."""
 
     return "unknown" if value is None else str(value)

@@ -1,11 +1,9 @@
 """Jinja2 prompt templates.
 
-Prompts live in `rules/templates/*.j2` rather than inline string literals so
-that prompt copy is versioned as its own artifact -- readable in diffs, and
-editable without touching call-site code.
-
-`StrictUndefined` is intentional: a typo'd or missing template variable raises
-instead of silently rendering an empty string into a prompt.
+Prompts live in `rules/templates/*.j2` rather than inline literals so prompt
+copy is versioned as its own artifact. `StrictUndefined` is intentional: a
+missing template variable raises instead of rendering an empty string into a
+prompt.
 """
 
 from __future__ import annotations

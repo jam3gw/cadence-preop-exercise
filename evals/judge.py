@@ -1,11 +1,8 @@
 """LLM judge for classifier evaluation.
 
-The judge exists to arbitrate the cases where a single asserted label is not
-honest -- a pre-operative assessment note that may or may not count as an H&P,
-an invented drug name carrying a real drug-class suffix. Most fixtures are
-plain exact-match assertions and never reach it.
-
-It is never used in the triage path.
+Arbitrates the cases where a single asserted label would not be honest -- a
+pre-operative assessment note that may or may not count as an H&P, an invented
+drug name carrying a real drug-class suffix. Never used in the triage path.
 """
 
 from __future__ import annotations

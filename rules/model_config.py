@@ -1,14 +1,9 @@
 """Per-task model selection.
 
-Each model-backed step gets its own configuration rather than sharing one
-global model id, because the tasks are not equally hard and should not cost the
-same. Document role classification is largely a naming exercise over an
-inconsistent vocabulary; deciding whether a drug is an anticoagulant can need
-genuine pharmacological reasoning, and is the judgement where being wrong is a
-patient safety event rather than an inconvenience.
-
-Every setting is overridable by environment variable so a model can be swapped,
-or an effort level tuned, without editing code -- see `from_env`.
+Each model-backed step is configured separately rather than sharing one global
+model id, because the tasks are not equally hard. Every setting is overridable
+by environment variable so a model or effort level can change without a code
+edit -- see `from_env`.
 """
 
 from __future__ import annotations
@@ -30,10 +25,8 @@ class ModelConfig:
     def request_kwargs(self) -> dict[str, object]:
         """Request parameters for this configuration.
 
-        Reasoning models are driven by `reasoning.effort` and reject an
-        explicit `temperature`, so the two are mutually exclusive. Where no
-        effort is configured we pin `temperature=0`, which is the only
-        determinism lever available on a non-reasoning model.
+        Reasoning models reject an explicit `temperature`, so the two are
+        mutually exclusive; without an effort we pin `temperature=0`.
         """
 
         if self.reasoning_effort is not None:
@@ -50,8 +43,7 @@ class ModelConfig:
     ) -> ModelConfig:
         """Build a config, letting `<PREFIX>_MODEL` / `<PREFIX>_EFFORT` win.
 
-        An effort of "none" or "" disables reasoning and restores temperature=0,
-        so a non-reasoning model can be substituted without a code change.
+        An effort of "none" or "" disables reasoning and restores temperature=0.
         """
 
         resolved_model = os.environ.get(f"{prefix}_MODEL", model)
@@ -68,10 +60,8 @@ class ModelConfig:
 def document_classifier_config() -> ModelConfig:
     """Documents: mostly an inconsistent-naming problem, but not only that.
 
-    Started at medium on the theory that this is naming rather than reasoning.
-    The eval suite showed medium was unstable run to run -- 163, 160 and 162 of
-    165 across three runs, with different cases failing each time -- so the
-    effort is raised to buy consistency rather than peak accuracy.
+    High rather than medium to buy consistency: across three runs of the
+    165-case fixture suite medium scored 163/160/162 and high scored 165/164/164.
     """
 
     return ModelConfig.from_env(
@@ -84,9 +74,8 @@ def document_classifier_config() -> ModelConfig:
 def medication_classifier_config() -> ModelConfig:
     """Medications: worth a stronger model and more thinking.
 
-    This only ever runs for names absent from `rules.medications`, so the
-    volume is low and the cases that reach it are by definition the ones the
-    curated list could not settle.
+    Only runs for names absent from `rules.medications`, so volume is low and
+    every case reaching it is one the curated list could not settle.
     """
 
     return ModelConfig.from_env(
