@@ -23,6 +23,14 @@ Your output must match this schema:
 
 Note: this exercise is evaluated on engineering judgment. You may not reach a 100% score, and that is OK! We are looking to understand how you approached the problem and designed a working solution.
 
+## Documentation
+
+- [docs/running.md](docs/running.md) — how to run this, including what differs
+  from the workflow below
+- [docs/approach.md](docs/approach.md) — approach and results
+- [docs/design-decisions.md](docs/design-decisions.md) — key design decisions
+- [docs/assumptions.md](docs/assumptions.md) — assumptions made
+
 ## Setup
 
 1. Confirm `uv` is installed.
