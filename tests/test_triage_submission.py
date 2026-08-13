@@ -31,17 +31,17 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
 def documents_as(**roles: str):
     """Classifier stub labelling each document by its `type`.
 
-    Keyed on type rather than doc_id so a test can express the labelling it
-    wants without restating identifiers.
+    Keyed on type so a test can express the labelling it wants without
+    restating identifiers.
     """
 
     def classify(documents):
         out = []
-        for doc in documents:
+        for index, doc in enumerate(documents):
             role = roles.get(doc.type or "", "OTHER")
             out.append(
                 ClassifiedDocumentModel(
-                    doc_id=doc.doc_id,
+                    ref=index + 1,
                     role=role,
                     signed=True if role == "SURGICAL_CONSENT" else None,
                     plan_is_clear=True if role == "ANTICOAG_PLAN" else None,
@@ -244,11 +244,11 @@ def test_explanation_lists_every_issue_in_rule_order(submission_payload) -> None
     )
 
 
-def test_hallucinated_document_ids_are_discarded(submission_payload) -> None:
-    """A label for a doc_id we never sent cannot reach the rules."""
+def test_out_of_range_refs_are_discarded(submission_payload) -> None:
+    """A label for a ref outside the batch cannot reach the rules."""
 
     def liar(documents):
-        return [ClassifiedDocumentModel(doc_id="not-a-real-id", role="H_AND_P")]
+        return [ClassifiedDocumentModel(ref=99, role="H_AND_P")]
 
     output = triage(submission_payload, documents=liar)
 

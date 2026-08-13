@@ -120,7 +120,7 @@ def run_documents(cases: list[dict], *, batch_size: int, workers: int) -> list[O
     def run_batch(batch: list[dict]) -> list[Outcome]:
         documents = [
             Document(
-                doc_id=case["case_id"],
+                doc_id=case["case_id"],  # carried for reporting, not for matching
                 type=case.get("type"),
                 date=None,
                 author=case.get("author"),
@@ -132,7 +132,12 @@ def run_documents(cases: list[dict], *, batch_size: int, workers: int) -> list[O
         # batches, and this sidesteps sharing mutable state between threads.
         classifier = LLMDocumentClassifier()
         try:
-            results = {r.doc_id: r for r in classifier(documents)}
+            # Refs are 1-based positions in the batch we sent.
+            results = {
+                batch[r.ref - 1]["case_id"]: r
+                for r in classifier(documents)
+                if 1 <= r.ref <= len(batch)
+            }
         except Exception as exc:  # noqa: BLE001 - reported, not raised
             return [
                 Outcome(c["case_id"], c, c["expected"], None, False, error=str(exc))

@@ -1,10 +1,10 @@
 Classify each of the following {{ documents | length }} document(s).
 {% for doc in documents %}
 --- BEGIN DOCUMENT ---
-doc_id: {{ doc.doc_id }}
+ref: {{ doc.ref }}
 type: {{ doc.type | default("(none)", true) }}
 author: {{ doc.author | default("(none)", true) }}
 text: {{ doc.text | default("(none)", true) }}
 --- END DOCUMENT ---
 {% endfor %}
-Return one classification per doc_id as JSON.
+Return one classification per ref as JSON.
