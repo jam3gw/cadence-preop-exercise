@@ -66,12 +66,18 @@ class ModelConfig:
 
 
 def document_classifier_config() -> ModelConfig:
-    """Documents: an inconsistent-naming problem more than a reasoning one."""
+    """Documents: mostly an inconsistent-naming problem, but not only that.
+
+    Started at medium on the theory that this is naming rather than reasoning.
+    The eval suite showed medium was unstable run to run -- 163, 160 and 162 of
+    165 across three runs, with different cases failing each time -- so the
+    effort is raised to buy consistency rather than peak accuracy.
+    """
 
     return ModelConfig.from_env(
         "PREOP_DOCUMENT_CLASSIFIER",
         model="gpt-5.6-luna",
-        reasoning_effort="medium",
+        reasoning_effort="high",
     )
 
 

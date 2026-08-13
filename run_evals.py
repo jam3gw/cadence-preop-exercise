@@ -32,7 +32,10 @@ from core import (
 
 ROOT = Path(__file__).resolve().parent
 
-DEFAULT_MODEL = "gpt-4.1-mini"
+# Empty means "use the per-task configuration in rules.model_config",
+# which is what the classifiers were tuned against. Passing --model
+# overrides both classifiers with a single model id.
+DEFAULT_MODEL = ""
 TERMINAL_RUN_STATUSES = {"completed", "failed", "canceled"}
 PRIMARY_SCORE_NAME = "aggregate_local_score_pct"
 

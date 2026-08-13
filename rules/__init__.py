@@ -6,7 +6,7 @@ policy as a pure function over a `RuleContext`. Model-backed interpretation
 happens once per submission, before any rule runs.
 """
 
-from rules.base import (
+from core import (
     ClassifiedDocument,
     ClassifiedMedication,
     DocumentRole,
