@@ -13,7 +13,7 @@ submission produce byte-identical output.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Literal, Protocol
 
 from core import (
@@ -24,6 +24,7 @@ from core import (
     PatientSubmission,
     TriageIssue,
     TriageIssueEvidence,
+    Vital,
 )
 
 # The roles the policy actually cares about. `documents[].type` is free text, so
@@ -47,6 +48,7 @@ MedicationClass = Literal["ANTICOAGULANT", "OTHER", "UNKNOWN"]
 DOCUMENTS_SOURCE = "documents"
 LABS_SOURCE = "labs"
 MEDICATIONS_SOURCE = "medications"
+VITALS_SOURCE = "vitals"
 
 
 @dataclass(frozen=True)
@@ -95,11 +97,58 @@ class LabRef:
 
     @property
     def effective_date(self) -> date | None:
+        """Calendar date, used for the policy's day-count windows."""
+
         return parse_date(self.lab.effective_at)
+
+    @property
+    def effective_at(self) -> datetime | None:
+        """Full instant, used only for ordering."""
+
+        return parse_timestamp(self.lab.effective_at)
 
     @property
     def source(self) -> str:
         return f"{LABS_SOURCE}[{self.index}]"
+
+
+@dataclass(frozen=True)
+class VitalRef:
+    """A vital sign paired with its position in the submission.
+
+    `vitals[].type` is a machine-generated discriminator, so it is matched
+    directly. Measurement fields are read with `getattr` rather than by
+    isinstance: the `Vital` union resolves a reading missing its values to
+    `GenericVital`, and a rule should see that as an absent measurement rather
+    than crash on the wrong branch of the union.
+    """
+
+    index: int
+    vital: Vital
+
+    @property
+    def vital_type(self) -> str | None:
+        raw = self.vital.type
+        return raw.strip().lower() if raw else None
+
+    @property
+    def measured_on(self) -> date | None:
+        """Calendar date, for display."""
+
+        return parse_date(self.vital.date)
+
+    @property
+    def measured_at(self) -> datetime | None:
+        """Full instant, used for ordering."""
+
+        return parse_timestamp(self.vital.date)
+
+    @property
+    def source(self) -> str:
+        return f"{VITALS_SOURCE}[{self.index}]"
+
+    def value(self, field: str) -> float | int | None:
+        return getattr(self.vital, field, None)
 
 
 @dataclass(frozen=True)
@@ -155,6 +204,13 @@ class RuleContext:
     def labs(self) -> list[LabRef]:
         return [LabRef(index=index, lab=lab) for index, lab in enumerate(self.submission.labs)]
 
+    def vitals_of_type(self, vital_type: str) -> list[VitalRef]:
+        return [
+            VitalRef(index=index, vital=vital)
+            for index, vital in enumerate(self.submission.vitals)
+            if (vital.type or "").strip().lower() == vital_type
+        ]
+
 
 class Rule(Protocol):
     """Evaluate one policy rule and return the issues it found.
@@ -194,6 +250,38 @@ def parse_date(value: str | None) -> date | None:
         return None
 
 
+def parse_timestamp(value: str | None) -> datetime | None:
+    """Parse a submission date field into an instant, for ordering.
+
+    `parse_date` deliberately returns a calendar date, because the policy's
+    windows are counted in days and the issue prose quotes those day counts.
+    Ordering is a different job: labs and vitals carry real timestamps
+    (`2026-02-24T10:12:00Z`), and collapsing those to a date makes two readings
+    on the same day tie, which would silently pick whichever came first in the
+    list rather than the most recent one.
+
+    Bare dates are anchored to midnight UTC so that naive and aware values
+    remain mutually comparable.
+    """
+
+    if not value:
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        parsed_date = parse_date(raw)
+        if parsed_date is None:
+            return None
+        parsed = datetime.combine(parsed_date, datetime.min.time())
+
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
 def most_recent(documents: list[ClassifiedDocument]) -> ClassifiedDocument | None:
     """Return the newest dated document, or `None` if none carry a usable date.
 
@@ -208,16 +296,30 @@ def most_recent(documents: list[ClassifiedDocument]) -> ClassifiedDocument | Non
 
 
 def most_recent_lab(labs: list[LabRef]) -> LabRef | None:
-    """Return the newest dated lab result, or `None` if none carry a usable date.
+    """Return the newest lab result, or `None` if none carry a usable date.
+
+    Ordered on the full timestamp, so two results on the same day resolve by
+    time of day rather than tying. Genuine ties break toward the earlier
+    position in the submission so the choice is stable across runs.
+    """
+
+    dated = [ref for ref in labs if ref.effective_at is not None]
+    if not dated:
+        return None
+    return max(dated, key=lambda ref: (ref.effective_at, -ref.index))
+
+
+def most_recent_vital(vitals: list[VitalRef]) -> VitalRef | None:
+    """Return the newest dated vital, or `None` if none carry a usable date.
 
     Ties break toward the earlier position in the submission so the choice is
     stable across runs.
     """
 
-    dated = [ref for ref in labs if ref.effective_date is not None]
+    dated = [ref for ref in vitals if ref.measured_at is not None]
     if not dated:
         return None
-    return max(dated, key=lambda ref: (ref.effective_date, -ref.index))
+    return max(dated, key=lambda ref: (ref.measured_at, -ref.index))
 
 
 def build_issue(

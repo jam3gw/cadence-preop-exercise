@@ -14,10 +14,13 @@ from rules.base import (
     MedicationClass,
     Rule,
     RuleContext,
+    VitalRef,
     build_issue,
     most_recent,
     most_recent_lab,
+    most_recent_vital,
     parse_date,
+    parse_timestamp,
 )
 from rules.classifiers import (
     ClassificationRefusedError,
@@ -30,6 +33,7 @@ from rules.classifiers import (
     classify_documents,
     resolve_medications,
 )
+from rules.acute_safety import evaluate as evaluate_acute_safety
 from rules.anticoagulation import evaluate as evaluate_anticoagulation
 from rules.documentation import evaluate as evaluate_required_documentation
 from rules.required_testing import evaluate as evaluate_required_testing
@@ -49,13 +53,17 @@ __all__ = [
     "MedicationClassifier",
     "Rule",
     "RuleContext",
+    "VitalRef",
     "build_issue",
     "classify_documents",
+    "evaluate_acute_safety",
     "evaluate_anticoagulation",
     "evaluate_required_documentation",
     "evaluate_required_testing",
     "most_recent",
     "most_recent_lab",
+    "most_recent_vital",
     "parse_date",
+    "parse_timestamp",
     "resolve_medications",
 ]
