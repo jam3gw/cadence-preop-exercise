@@ -1,0 +1,5 @@
+Classify each of the following {{ names | length }} medication name(s).
+{% for name in names %}
+- {{ name }}
+{% endfor %}
+Return one classification per name as JSON.

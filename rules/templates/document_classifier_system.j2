@@ -30,6 +30,19 @@ For SURGICAL_CONSENT documents only, also set `signed`:
 
 For every other role, `signed` must be null.
 
+For ANTICOAG_PLAN documents only, also set `plan_is_clear`:
+- true if the text describes how the anticoagulant will actually be managed
+  around the procedure -- for example naming when it is held or stopped, and
+  when it resumes
+- false if the text only acknowledges the medication, defers the decision to
+  another clinician, or describes the plan as pending, incomplete, or to be
+  finalized
+- null if the text does not clearly indicate either way
+
+A document that merely notes the patient takes an anticoagulant, or refers the
+question onward, is not a clear plan. For every other role, `plan_is_clear`
+must be null.
+
 Return a classification for every `doc_id` given, in any order. Echo each
 `doc_id` back exactly as provided. Do not invent document ids and do not omit
 any.
