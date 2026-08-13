@@ -2,6 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
+#   "jinja2>=3.1.0",
 #   "openai>=2.0.0",
 #   "pydantic>=2.8.0",
 # ]
