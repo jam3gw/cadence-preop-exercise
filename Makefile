@@ -33,6 +33,7 @@ report:
 
 test:
 	uv run \
+		--with 'jinja2>=3.1.0' \
 		--with 'openai>=2.0.0' \
 		--with 'pydantic>=2.8.0' \
 		--with 'pytest>=8.0.0' \
