@@ -9,10 +9,12 @@ any rule runs.
 from rules.base import (
     ClassifiedDocument,
     DocumentRole,
+    LabRef,
     Rule,
     RuleContext,
     build_issue,
     most_recent,
+    most_recent_lab,
     parse_date,
 )
 from rules.classifiers import (
@@ -23,6 +25,7 @@ from rules.classifiers import (
     classify_documents,
 )
 from rules.documentation import evaluate as evaluate_required_documentation
+from rules.required_testing import evaluate as evaluate_required_testing
 
 __all__ = [
     "ClassificationRefusedError",
@@ -31,11 +34,14 @@ __all__ = [
     "DocumentClassifier",
     "DocumentRole",
     "LLMDocumentClassifier",
+    "LabRef",
     "Rule",
     "RuleContext",
     "build_issue",
     "classify_documents",
     "evaluate_required_documentation",
+    "evaluate_required_testing",
     "most_recent",
+    "most_recent_lab",
     "parse_date",
 ]
