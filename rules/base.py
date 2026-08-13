@@ -20,6 +20,7 @@ from core import (
     Document,
     IssueCategory,
     LabResult,
+    Medication,
     PatientSubmission,
     TriageIssue,
     TriageIssueEvidence,
@@ -34,9 +35,18 @@ DocumentRole = Literal[
     "OTHER",
 ]
 
+# Whether a medication is an anticoagulant for the purposes of Rule 3. Resolved
+# from `rules.medications` where possible, and only otherwise from a model.
+# UNKNOWN is not a failure mode to be swallowed: a drug nobody could classify is
+# reported rather than assumed harmless, because the two errors are not
+# symmetric -- a spurious follow-up is an inconvenience, a missed
+# anticoagulation plan is a patient safety event.
+MedicationClass = Literal["ANTICOAGULANT", "OTHER", "UNKNOWN"]
+
 # Evidence paths are dotted/indexed paths into the submission payload.
 DOCUMENTS_SOURCE = "documents"
 LABS_SOURCE = "labs"
+MEDICATIONS_SOURCE = "medications"
 
 
 @dataclass(frozen=True)
@@ -49,6 +59,11 @@ class ClassifiedDocument:
     #: Whether the document text clearly indicates a signature. Only meaningful
     #: for consent documents; `None` means "not determinable".
     signed: bool | None = None
+    #: Whether the document sets out a perioperative anticoagulation plan
+    #: clearly enough to act on -- i.e. states how the medication is handled
+    #: before and after the procedure. Only meaningful for ANTICOAG_PLAN
+    #: documents; `None` means "not determinable".
+    plan_is_clear: bool | None = None
 
     @property
     def doc_date(self) -> date | None:
@@ -88,11 +103,36 @@ class LabRef:
 
 
 @dataclass(frozen=True)
+class ClassifiedMedication:
+    """A submission medication paired with its resolved class."""
+
+    index: int
+    medication: Medication
+    medication_class: MedicationClass
+
+    @property
+    def is_active(self) -> bool:
+        """Whether the patient is recorded as currently taking this.
+
+        Strictly `active is True`. A null `active` is not treated as "taking":
+        the policy scopes Rule 3 to patients *currently* taking an
+        anticoagulant, and an unconfirmed entry does not establish that.
+        """
+
+        return self.medication.active is True
+
+    @property
+    def source(self) -> str:
+        return f"{MEDICATIONS_SOURCE}[{self.index}]"
+
+
+@dataclass(frozen=True)
 class RuleContext:
     """Everything a rule is allowed to see."""
 
     submission: PatientSubmission
     documents: tuple[ClassifiedDocument, ...] = ()
+    medications: tuple[ClassifiedMedication, ...] = ()
 
     @property
     def procedure_date(self) -> date | None:
@@ -101,6 +141,15 @@ class RuleContext:
 
     def documents_with_role(self, role: DocumentRole) -> list[ClassifiedDocument]:
         return [doc for doc in self.documents if doc.role == role]
+
+    def active_medications_of_class(
+        self, medication_class: MedicationClass
+    ) -> list[ClassifiedMedication]:
+        return [
+            med
+            for med in self.medications
+            if med.is_active and med.medication_class == medication_class
+        ]
 
     @property
     def labs(self) -> list[LabRef]:
