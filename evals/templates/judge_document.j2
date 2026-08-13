@@ -1,0 +1,27 @@
+Policy definitions for document roles:
+
+- H_AND_P: a history and physical examination note. Titles vary widely in
+  abbreviation and formatting, and may carry prefixes or suffixes. A retained
+  or older H&P is still an H&P; being out of date is handled elsewhere. A
+  document that merely references an H&P performed elsewhere is not one.
+- SURGICAL_CONSENT: a consent document for the surgical procedure itself.
+- ANTICOAG_PLAN: a perioperative anticoagulation management plan.
+- OTHER: anything else.
+
+`signed` applies only to SURGICAL_CONSENT: true if the text clearly indicates a
+signature, false if it clearly indicates none, null if undeterminable.
+`plan_is_clear` applies only to ANTICOAG_PLAN: true only if the text says how
+the medication is actually managed around the procedure.
+
+Document under review:
+  type:   {{ item.type | default("(empty)", true) }}
+  author: {{ item.author | default("(none)", true) }}
+  text:   {{ item.text | default("(empty)", true) }}
+
+Fixture expected:  role={{ expected.role }}, signed={{ expected.signed }}, plan_is_clear={{ expected.plan_is_clear }}
+Classifier said:   role={{ actual.role }}, signed={{ actual.signed }}, plan_is_clear={{ actual.plan_is_clear }}
+{% if note %}
+Fixture note: {{ note }}
+{% endif %}
+
+Which is right?

@@ -1,0 +1,70 @@
+{"case_id":"med_000","origin":"sample_data","name":"apixaban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"appears in repo sample data"}}
+{"case_id":"med_001","origin":"sample_data","name":"warfarin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"appears in repo sample data"}}
+{"case_id":"med_002","origin":"sample_data","name":"lisinopril","expected":{"medication_class":"OTHER","judge":false,"note":"appears in repo sample data; ACE inhibitor"}}
+{"case_id":"med_003","origin":"sample_data","name":"metformin","expected":{"medication_class":"OTHER","judge":false,"note":"appears in repo sample data; biguanide"}}
+{"case_id":"med_010","origin":"synthetic","name":"Coumadin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"VKA brand"}}
+{"case_id":"med_011","origin":"synthetic","name":"Jantoven","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"VKA brand"}}
+{"case_id":"med_012","origin":"synthetic","name":"acenocoumarol","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"VKA"}}
+{"case_id":"med_013","origin":"synthetic","name":"phenprocoumon","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"VKA"}}
+{"case_id":"med_020","origin":"synthetic","name":"Eliquis","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"apixaban brand"}}
+{"case_id":"med_021","origin":"synthetic","name":"rivaroxaban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"factor Xa inhibitor"}}
+{"case_id":"med_022","origin":"synthetic","name":"Xarelto","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"rivaroxaban brand"}}
+{"case_id":"med_023","origin":"synthetic","name":"edoxaban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"factor Xa inhibitor"}}
+{"case_id":"med_024","origin":"synthetic","name":"Savaysa","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"edoxaban brand"}}
+{"case_id":"med_025","origin":"synthetic","name":"betrixaban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"factor Xa inhibitor"}}
+{"case_id":"med_026","origin":"synthetic","name":"dabigatran","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"direct thrombin inhibitor"}}
+{"case_id":"med_027","origin":"synthetic","name":"Pradaxa","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"dabigatran brand"}}
+{"case_id":"med_030","origin":"synthetic","name":"enoxaparin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"LMWH"}}
+{"case_id":"med_031","origin":"synthetic","name":"Lovenox","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"enoxaparin brand"}}
+{"case_id":"med_032","origin":"synthetic","name":"dalteparin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"LMWH"}}
+{"case_id":"med_033","origin":"synthetic","name":"tinzaparin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"LMWH"}}
+{"case_id":"med_034","origin":"synthetic","name":"fondaparinux","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"indirect factor Xa inhibitor"}}
+{"case_id":"med_035","origin":"synthetic","name":"Arixtra","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"fondaparinux brand"}}
+{"case_id":"med_036","origin":"synthetic","name":"heparin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"unfractionated heparin"}}
+{"case_id":"med_037","origin":"synthetic","name":"argatroban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"parenteral DTI"}}
+{"case_id":"med_038","origin":"synthetic","name":"bivalirudin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"parenteral DTI"}}
+{"case_id":"med_040","origin":"synthetic","name":"Eliquis 5mg BID","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"dosage text must not defeat matching"}}
+{"case_id":"med_041","origin":"synthetic","name":"warfarin sodium 5 mg tablet","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"salt form plus dosage"}}
+{"case_id":"med_042","origin":"synthetic","name":"enoxaparin 40 mg SC daily","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"route and frequency text"}}
+{"case_id":"med_043","origin":"synthetic","name":"APIXABAN","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"case folding"}}
+{"case_id":"med_044","origin":"synthetic","name":"  Xarelto  ","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"surrounding whitespace"}}
+{"case_id":"med_050","origin":"synthetic","name":"apixiban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"misspelling of apixaban"}}
+{"case_id":"med_051","origin":"synthetic","name":"warfrin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"misspelling of warfarin"}}
+{"case_id":"med_052","origin":"synthetic","name":"enoxaperin","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"misspelling of enoxaparin"}}
+{"case_id":"med_053","origin":"synthetic","name":"rivaroxiban","expected":{"medication_class":"ANTICOAGULANT","judge":false,"note":"misspelling of rivaroxaban"}}
+{"case_id":"med_060","origin":"synthetic","name":"aspirin","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet, not anticoagulant, per policy wording"}}
+{"case_id":"med_061","origin":"synthetic","name":"aspirin 81 mg","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet"}}
+{"case_id":"med_062","origin":"synthetic","name":"clopidogrel","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet"}}
+{"case_id":"med_063","origin":"synthetic","name":"Plavix","expected":{"medication_class":"OTHER","judge":false,"note":"clopidogrel brand"}}
+{"case_id":"med_064","origin":"synthetic","name":"ticagrelor","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet"}}
+{"case_id":"med_065","origin":"synthetic","name":"Brilinta","expected":{"medication_class":"OTHER","judge":false,"note":"ticagrelor brand"}}
+{"case_id":"med_066","origin":"synthetic","name":"prasugrel","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet"}}
+{"case_id":"med_067","origin":"synthetic","name":"dipyridamole","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet"}}
+{"case_id":"med_068","origin":"synthetic","name":"cilostazol","expected":{"medication_class":"OTHER","judge":false,"note":"antiplatelet/vasodilator"}}
+{"case_id":"med_069","origin":"synthetic","name":"aspirin-dipyridamole","expected":{"medication_class":"OTHER","judge":false,"note":"combination antiplatelet (Aggrenox)"}}
+{"case_id":"med_070","origin":"synthetic","name":"atorvastatin","expected":{"medication_class":"OTHER","judge":false,"note":"statin"}}
+{"case_id":"med_071","origin":"synthetic","name":"levothyroxine","expected":{"medication_class":"OTHER","judge":false,"note":"thyroid hormone"}}
+{"case_id":"med_072","origin":"synthetic","name":"omeprazole","expected":{"medication_class":"OTHER","judge":false,"note":"PPI"}}
+{"case_id":"med_073","origin":"synthetic","name":"albuterol","expected":{"medication_class":"OTHER","judge":false,"note":"bronchodilator"}}
+{"case_id":"med_074","origin":"synthetic","name":"sertraline","expected":{"medication_class":"OTHER","judge":false,"note":"SSRI"}}
+{"case_id":"med_075","origin":"synthetic","name":"gabapentin","expected":{"medication_class":"OTHER","judge":false,"note":"anticonvulsant"}}
+{"case_id":"med_076","origin":"synthetic","name":"amlodipine","expected":{"medication_class":"OTHER","judge":false,"note":"calcium channel blocker"}}
+{"case_id":"med_077","origin":"synthetic","name":"prednisone","expected":{"medication_class":"OTHER","judge":false,"note":"corticosteroid"}}
+{"case_id":"med_078","origin":"synthetic","name":"insulin glargine","expected":{"medication_class":"OTHER","judge":false,"note":"basal insulin"}}
+{"case_id":"med_079","origin":"synthetic","name":"ibuprofen","expected":{"medication_class":"OTHER","judge":false,"note":"NSAID; affects platelets but not an anticoagulant"}}
+{"case_id":"med_080","origin":"synthetic","name":"vitamin K","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: reverses warfarin, opposite of an anticoagulant"}}
+{"case_id":"med_081","origin":"synthetic","name":"phytonadione","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: vitamin K1, warfarin reversal"}}
+{"case_id":"med_082","origin":"synthetic","name":"protamine sulfate","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: heparin reversal agent"}}
+{"case_id":"med_083","origin":"synthetic","name":"andexanet alfa","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: factor Xa inhibitor reversal agent"}}
+{"case_id":"med_084","origin":"synthetic","name":"idarucizumab","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: dabigatran reversal agent"}}
+{"case_id":"med_085","origin":"synthetic","name":"tranexamic acid","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: antifibrinolytic, promotes clot stability"}}
+{"case_id":"med_086","origin":"synthetic","name":"aminocaproic acid","expected":{"medication_class":"OTHER","judge":false,"note":"TRAP: antifibrinolytic"}}
+{"case_id":"med_090","origin":"synthetic","name":"zzzaban","expected":{"medication_class":"OTHER","judge":true,"note":"invented name carrying the -aban factor Xa suffix; defensible either way"}}
+{"case_id":"med_091","origin":"synthetic","name":"obecalp","expected":{"medication_class":"OTHER","judge":false,"note":"invented name resembling nothing"}}
+{"case_id":"med_092","origin":"synthetic","name":"heparin flush","expected":{"medication_class":"ANTICOAGULANT","judge":true,"note":"line flush; systemic anticoagulation is arguable"}}
+{"case_id":"med_093","origin":"synthetic","name":"heparin lock 10 units/mL","expected":{"medication_class":"ANTICOAGULANT","judge":true,"note":"catheter patency dose, not therapeutic"}}
+{"case_id":"med_094","origin":"synthetic","name":"fish oil","expected":{"medication_class":"OTHER","judge":true,"note":"supplement with mild antithrombotic effect"}}
+{"case_id":"med_095","origin":"synthetic","name":"vitamin E","expected":{"medication_class":"OTHER","judge":true,"note":"supplement with mild antiplatelet effect at high dose"}}
+{"case_id":"med_096","origin":"synthetic","name":"nattokinase","expected":{"medication_class":"OTHER","judge":true,"note":"supplement marketed as fibrinolytic"}}
+{"case_id":"med_097","origin":"synthetic","name":"defibrotide","expected":{"medication_class":"OTHER","judge":true,"note":"profibrinolytic with antithrombotic properties"}}
+{"case_id":"med_098","origin":"synthetic","name":"","expected":{"medication_class":"OTHER","judge":false,"note":"empty name must not crash or be guessed"}}
