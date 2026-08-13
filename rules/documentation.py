@@ -14,14 +14,16 @@ everything below is deterministic date and presence logic.
 
 from __future__ import annotations
 
-from core import TriageIssue
-from rules.base import (
+from core import (
     DOCUMENTS_SOURCE,
+    describe_present,
     ClassifiedDocument,
     RuleContext,
+    TriageIssue,
     build_issue,
     most_recent,
 )
+
 
 CATEGORY = "REQUIRED_DOCUMENTATION"
 HP_WINDOW_DAYS = 30
@@ -45,7 +47,10 @@ def _evaluate_history_and_physical(ctx: RuleContext) -> list[TriageIssue]:
                 CATEGORY,
                 "History and Physical document missing",
                 source=DOCUMENTS_SOURCE,
-                details="No History and Physical document with a valid date found",
+                details=(
+                    "No History and Physical document with a valid date found; "
+                    f"{_documents_on_file(ctx)}"
+                ),
             )
         ]
 
@@ -100,7 +105,7 @@ def _evaluate_surgical_consent(ctx: RuleContext) -> list[TriageIssue]:
                 CATEGORY,
                 "Signed surgical consent missing",
                 source=DOCUMENTS_SOURCE,
-                details="No Surgical Consent document found",
+                details=f"No Surgical Consent document found; {_documents_on_file(ctx)}",
             )
         ]
 
@@ -124,3 +129,14 @@ def _unsigned_consent_details(consent: ClassifiedDocument) -> str:
     base = "Consent document text does not clearly indicate signed consent"
     text = consent.text.strip()
     return f"{base}: {text}" if text else base
+
+
+def _documents_on_file(ctx: RuleContext) -> str:
+    return describe_present(
+        [
+            f"{doc.document.type or 'untyped'}"
+            + (f" ({doc.document.date})" if doc.document.date else "")
+            for doc in ctx.documents
+        ],
+        noun="documents",
+    )

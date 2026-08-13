@@ -2,7 +2,8 @@ INPUT ?= data/patients_sample_50.jsonl
 OUTPUT ?= data/baseline_outputs.jsonl
 REPORT ?= data/eval_report.json
 DETERMINISM_REPORT ?= data/determinism_report.json
-MODEL ?= gpt-4.1-mini
+# Empty uses the per-task models in rules/model_config.py.
+MODEL ?=
 
 CLASSIFIER_REPORT ?= data/classifier_eval_report.json
 EVAL_WORKERS ?= 12
@@ -14,7 +15,7 @@ baseline:
 	uv run run_baseline.py \
 		--input $(INPUT) \
 		--output $(OUTPUT) \
-		--model $(MODEL)
+		--model "$(MODEL)"
 
 evals:
 	uv run run_evals.py \
@@ -26,7 +27,7 @@ determinism:
 	uv run run_evals.py \
 		--determinism \
 		--input $(INPUT) \
-		--model $(MODEL) \
+		--model "$(MODEL)" \
 		--report $(DETERMINISM_REPORT)
 
 score:

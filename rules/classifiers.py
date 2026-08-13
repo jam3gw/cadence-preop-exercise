@@ -21,19 +21,21 @@ stays deterministic.
 
 from __future__ import annotations
 
+from core import (
+    ClassifiedDocument,
+    ClassifiedMedication,
+    Document,
+    DocumentRole,
+    Medication,
+    MedicationClass,
+)
+
 import hashlib
 from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, Field
 
-from core import Document, Medication
 from rules import medications as medication_reference
-from rules.base import (
-    ClassifiedDocument,
-    ClassifiedMedication,
-    DocumentRole,
-    MedicationClass,
-)
 from rules.model_config import (
     ModelConfig,
     document_classifier_config,

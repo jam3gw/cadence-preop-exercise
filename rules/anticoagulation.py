@@ -18,15 +18,17 @@ classifier's `plan_is_clear`). Everything below is presence logic.
 
 from __future__ import annotations
 
-from core import TriageIssue
-from rules.base import (
+from core import (
     DOCUMENTS_SOURCE,
+    describe_present,
     ClassifiedDocument,
     ClassifiedMedication,
     RuleContext,
+    TriageIssue,
     build_issue,
     most_recent,
 )
+
 
 CATEGORY = "ANTICOAGULATION_MANAGEMENT"
 MISSING_DATA_CATEGORY = "MISSING_REQUIRED_DATA"
@@ -35,7 +37,37 @@ MISSING_DATA_CATEGORY = "MISSING_REQUIRED_DATA"
 def evaluate(ctx: RuleContext) -> list[TriageIssue]:
     """Evaluate Rule 3 and return any anticoagulation issues found."""
 
-    return [*_evaluate_unidentified(ctx), *_evaluate_plan(ctx)]
+    return [
+        *_evaluate_unidentified(ctx),
+        *_evaluate_unknown_status(ctx),
+        *_evaluate_plan(ctx),
+    ]
+
+
+def _evaluate_unknown_status(ctx: RuleContext) -> list[TriageIssue]:
+    """Report anticoagulants whose `active` status is unknown.
+
+    The plan requirement is scoped to patients *currently* taking an
+    anticoagulant, so a null `active` does not trigger it -- we do not demand a
+    perioperative plan for a drug we cannot confirm the patient takes. But not
+    knowing is itself a gap: `active` is a field the rule turns on, and the
+    policy's default for a required field being missing or unknown is
+    NEEDS_FOLLOW_UP. Someone has to ask the patient.
+    """
+
+    return [
+        build_issue(
+            MISSING_DATA_CATEGORY,
+            "Unknown anticoagulant active status",
+            source=med.source,
+            details=(
+                f"Medication {med.medication.name or 'unnamed'} has active=null; "
+                "cannot determine if currently taking"
+            ),
+        )
+        for med in ctx.medications_of_class("ANTICOAGULANT")
+        if med.medication.active is None
+    ]
 
 
 def _evaluate_unidentified(ctx: RuleContext) -> list[TriageIssue]:
@@ -75,7 +107,10 @@ def _evaluate_plan(ctx: RuleContext) -> list[TriageIssue]:
                 CATEGORY,
                 "Missing perioperative anticoagulation plan",
                 source=DOCUMENTS_SOURCE,
-                details=_details(anticoagulants, "no perioperative plan document found"),
+                details=_details(
+                    anticoagulants,
+                    f"no perioperative plan document found; {_documents_on_file(ctx)}",
+                ),
             )
         ]
 
@@ -121,3 +156,14 @@ def _medication_phrase(anticoagulants: list[ClassifiedMedication]) -> str:
         for med in anticoagulants
     ]
     return f"Active anticoagulant medication present: {', '.join(parts)}"
+
+
+def _documents_on_file(ctx: RuleContext) -> str:
+    return describe_present(
+        [
+            f"{doc.document.type or 'untyped'}"
+            + (f" ({doc.document.date})" if doc.document.date else "")
+            for doc in ctx.documents
+        ],
+        noun="documents",
+    )

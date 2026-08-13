@@ -16,14 +16,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from core import TriageIssue
-from rules.base import (
+from core import (
     LABS_SOURCE,
+    describe_present,
     LabRef,
     RuleContext,
+    TriageIssue,
     build_issue,
     most_recent_lab,
 )
+
 
 CATEGORY = "REQUIRED_TESTING"
 MISSING_DATA_CATEGORY = "MISSING_REQUIRED_DATA"
@@ -136,7 +138,7 @@ def _check_test(
             CATEGORY,
             f"{name} missing",
             source=LABS_SOURCE,
-            details=f"No {name} result found",
+            details=f"No {name} result found; {_labs_on_file(ctx)}",
         )
 
     # "Only the most recent result for each required test shall be considered" --
@@ -147,7 +149,7 @@ def _check_test(
             CATEGORY,
             f"{name} missing",
             source=LABS_SOURCE,
-            details=f"No {name} result with a valid date found",
+            details=f"No {name} result with a valid date found; {_labs_on_file(ctx)}",
         )
 
     return _check_window(
@@ -155,6 +157,17 @@ def _check_test(
         name=name,
         window_days=window_days,
         procedure_date=procedure_date,
+    )
+
+
+def _labs_on_file(ctx: RuleContext) -> str:
+    return describe_present(
+        [
+            f"{ref.lab.code or 'uncoded'}"
+            + (f" ({ref.lab.effective_at})" if ref.lab.effective_at else "")
+            for ref in ctx.labs
+        ],
+        noun="labs",
     )
 
 

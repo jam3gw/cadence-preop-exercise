@@ -21,14 +21,15 @@ limits, temperature only strictly above. That asymmetry is in the policy.
 
 from __future__ import annotations
 
-from core import TriageIssue
-from rules.base import (
+from core import (
     VITALS_SOURCE,
     RuleContext,
+    TriageIssue,
     VitalRef,
     build_issue,
     most_recent_vital,
 )
+
 
 CATEGORY = "ACUTE_SAFETY_EXCLUSION"
 MISSING_DATA_CATEGORY = "MISSING_REQUIRED_DATA"
@@ -65,13 +66,16 @@ def _evaluate_blood_pressure(ctx: RuleContext) -> list[TriageIssue]:
     if not breached:
         return []
 
+    # The reading's date is part of the evidence, not decoration: these
+    # patients carry several blood pressures, and "systolic=184" alone does not
+    # say which one the exclusion was drawn from.
     return [
         build_issue(
             CATEGORY,
             "Blood pressure exceeds exclusion threshold",
             source=latest.source,
             details=(
-                f"latest BP systolic={_format(systolic)}, "
+                f"latest BP{_measured_on(latest)}: systolic={_format(systolic)}, "
                 f"diastolic={_format(diastolic)}; threshold "
                 f"systolic>={SYSTOLIC_THRESHOLD} or diastolic>={DIASTOLIC_THRESHOLD}"
             ),
@@ -118,6 +122,13 @@ def _missing(vital_type: str, description: str) -> TriageIssue:
         source=VITALS_SOURCE,
         details=f"No {vital_type} vital with valid date and value found",
     )
+
+
+def _measured_on(ref: VitalRef) -> str:
+    """Render the reading's date, or nothing if it has none."""
+
+    measured = ref.measured_on
+    return f" on {measured.isoformat()}" if measured else ""
 
 
 def _format(value: float | int | None) -> str:
