@@ -1,24 +1,15 @@
 """LLM-backed classification of the free-text parts of a submission.
 
-Two things in a submission resist deterministic interpretation:
+Two things resist deterministic interpretation. `documents[].type` is free text
+from many source systems, so a case's whole document list goes to the model in
+one call. Medication names are an open vocabulary with no reference data here,
+so they are resolved against `rules.medications` first and only unknown names
+reach the model.
 
-`documents[].type` is free text produced by many source systems ("PREOP - H and
-P - signed", "Scanned Hist & Phys (H&P) (external)", "Imported: Consult H&P",
-...). Treating it as an enum is brittle, so the whole document list for a case
-goes to the model in one call, which labels each document by a short `ref`
-with the policy role it serves.
-
-Medication names are an open vocabulary with no reference data in this repo.
-Those are resolved against the curated list in `rules.medications` first, and
-only names it does not know reach the model -- see `resolve_medications`.
-
-In both cases the model returns nothing but small enum labels keyed by an
-identifier we gave it, never prose that reaches an issue. Returned keys are
-validated against the real input before use, so a bad key cannot corrupt an
-evidence path, and every rule's phrasing stays deterministic. Those keys are
-kept deliberately short: a model asked to echo a 36-character UUID will
-eventually mistype one, and a mistyped key is indistinguishable from a
-hallucinated one.
+In both cases the model returns small enum labels keyed by a short identifier
+we supplied, never prose that reaches an issue. Keys are kept short on purpose:
+a model asked to echo a 36-character UUID will eventually mistype one, and a
+mistyped key is indistinguishable from a hallucinated one.
 """
 
 from __future__ import annotations
@@ -95,10 +86,9 @@ def _structured_call(
 ) -> ResultT:
     """One Structured Outputs call, returning a validated instance.
 
-    `responses.parse` with `text_format` is genuine Structured Outputs: the SDK
-    derives a strict JSON schema from the model (every property required,
-    additionalProperties false) and the API constrains decoding to it, so a
-    schema violation is impossible rather than merely unlikely.
+    `responses.parse` with `text_format` has the SDK derive a strict schema and
+    the API constrain decoding to it, so a schema violation is impossible
+    rather than merely unlikely.
     """
 
     # Import lazily so this module stays importable without the openai package
@@ -134,17 +124,13 @@ def _structured_call(
 def build_classifier_payload(documents: list[Document]) -> list[dict[str, object]]:
     """Model-facing view of the documents.
 
-    Documents are keyed by a short sequential `ref`, not by their `doc_id`.
-    The ids in real submissions are 36-character UUIDs, and asking a model to
-    copy one back exactly is asking for a transcription error it has no way to
-    catch -- observed in practice as `...5eed-aee7-...` coming back as
-    `...5eed-ae7a-...`, which the reconciler below then discarded as a
-    hallucinated id, throwing away a correct classification. A one- or
-    two-digit ref removes that failure mode, and costs fewer tokens.
+    Keyed by a short sequential `ref` rather than `doc_id`: a model asked to
+    copy back a 36-character UUID mistyped one in testing (`...5eed-aee7-...`
+    returned as `...5eed-ae7a-...`), and the reconciler discarded the correct
+    classification as a hallucinated id.
 
-    Deliberately omits `date`: recency is the rules' job, and withholding dates
-    keeps the model from quietly deciding a document is "too old to count"
-    instead of just naming what it is.
+    Omits `date` so the model cannot decide a document is "too old to count"
+    instead of naming what it is. Recency is the rules' job.
     """
 
     return [
@@ -216,14 +202,10 @@ def classify_documents(
 ) -> list[ClassifiedDocument]:
     """Run `classifier` and reconcile its output against the real document list.
 
-    Refs are 1-based positions in the list we sent. Anything outside that range
-    is discarded, and any document the model fails to classify falls back to
-    OTHER rather than being dropped, so every input document is represented in
-    the output at its original index. That fallback is safe in the sense that
-    an unlabelled document can only ever cause a requirement to look unmet --
-    it can never clear a patient -- but it is silent, which is why the ref
-    scheme above matters: the failure it hides looks exactly like a document
-    that was never in the submission.
+    Refs are 1-based positions; anything out of range is discarded and any
+    unclassified document falls back to OTHER. That fallback is safe in one
+    direction -- an unlabelled document can only make a requirement look unmet,
+    never clear a patient -- but it is silent, which is why short refs matter.
     """
 
     if not documents:
@@ -286,10 +268,8 @@ class LLMMedicationClassifier:
     def _echo_key(name: str) -> str:
         """Key for matching a returned name back to the one we asked about.
 
-        The model echoes names as text, and reliably normalises surrounding
-        whitespace and casing while doing so. Matching on the raw string drops
-        those answers on the floor and reports the drug as unclassifiable, so
-        the comparison is normalised on both sides.
+        The model normalises whitespace and casing when echoing names, so raw
+        string matching would drop valid answers as unclassifiable.
         """
 
         return " ".join(name.split()).casefold()
@@ -330,14 +310,10 @@ def resolve_medications(
 ) -> list[ClassifiedMedication]:
     """Resolve each medication's class, reference list first.
 
-    The curated list in `rules.medications` is authoritative: a name it
-    recognises never reaches the model, so the common path is deterministic and
-    auditable. Only genuinely unknown names are sent to `classifier`.
-
-    A name that neither the list nor the model resolves -- including when no
-    classifier is supplied at all -- comes back UNKNOWN, never OTHER. Silently
-    clearing a drug nobody could identify is the one failure this rule must not
-    have.
+    A name `rules.medications` recognises never reaches the model, so the
+    common path is deterministic and auditable. A name neither resolves comes
+    back UNKNOWN, never OTHER -- silently clearing an unidentified drug is the
+    one failure this must not have.
     """
 
     if not medications:

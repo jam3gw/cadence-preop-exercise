@@ -18,11 +18,11 @@ from datetime import date
 
 from core import (
     LABS_SOURCE,
-    describe_present,
     LabRef,
     RuleContext,
     TriageIssue,
     build_issue,
+    describe_present,
     most_recent_lab,
 )
 
@@ -79,11 +79,8 @@ def evaluate(ctx: RuleContext) -> list[TriageIssue]:
         ctx.submission.procedure.procedure_risk if ctx.submission.procedure else None
     )
 
-    # Both branches below are the same class of failure: without a risk level we
-    # cannot know which tests are required, so the procedure's classification has
-    # to be settled before this patient can be approved. The policy's stated
-    # default for a required field being missing or unknown is NEEDS_FOLLOW_UP,
-    # which any issue already implies -- neither case escalates further.
+    # Both branches are the same failure: without a risk level we cannot know
+    # which tests are required, so the classification has to be settled first.
     if risk is None:
         return [
             build_issue(
@@ -107,8 +104,8 @@ def evaluate(ctx: RuleContext) -> list[TriageIssue]:
             )
         ]
 
-    # Every window is measured against the procedure date. Without one the rule
-    # is not evaluable; the missing-data rule owns reporting that.
+    # Windows are measured against the procedure date; core.py reports its
+    # absence.
     procedure_date = ctx.procedure_date
     if procedure_date is None:
         return []
@@ -141,8 +138,7 @@ def _check_test(
             details=f"No {name} result found; {_labs_on_file(ctx)}",
         )
 
-    # "Only the most recent result for each required test shall be considered" --
-    # an older in-window result does not rescue a newer out-of-window one.
+    # An older in-window result does not rescue a newer out-of-window one.
     newest = most_recent_lab(matches)
     if newest is None:
         return build_issue(
@@ -183,8 +179,7 @@ def _check_window(
     days_prior = (procedure_date - lab_date).days
 
     if days_prior < 0:
-        # Resulted after the procedure date. Treated as a data problem rather
-        # than a pass, consistent with Rule 1's handling of future-dated H&Ps.
+        # Resulted after the procedure: a data problem, not a pass.
         return build_issue(
             CATEGORY,
             f"{name} outside {window_days}-day window",

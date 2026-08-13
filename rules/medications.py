@@ -1,20 +1,13 @@
 """Reference data for identifying anticoagulant medications.
 
-Rule 3 turns on whether a patient is taking an anticoagulant, which is a
-clinical determination this codebase has no other source of truth for. Rather
-than leaving it entirely to a language model, the common agents are enumerated
-here so the decision is deterministic, greppable, and reviewable by a clinician
-without reading any prompt or running any model.
+Enumerating the common agents here keeps Rule 3's determination deterministic
+and reviewable by a clinician without reading a prompt or running a model.
+Organised by the pharmacological classes in ATC group B01A, covering agents in
+routine use under generic and common US brand names.
 
-Scope note: this list is organised by the pharmacological classes in ATC group
-B01A (antithrombotic agents) and covers agents in routine use, under generic
-and common US brand names. It is not exhaustive -- anything absent falls
-through to the model-backed fallback in `rules.classifiers`, which is
-deliberately conservative about what it clears.
-
-Maintenance: names are matched token-wise after case folding, so entries should
-be single lowercase tokens. "Eliquis 5mg" and "warfarin sodium" both resolve
-via their significant token.
+Not exhaustive: anything absent falls through to the model-backed fallback in
+`rules.classifiers`. Names are matched token-wise after case folding, so
+entries must be single lowercase tokens.
 """
 
 from __future__ import annotations
@@ -79,16 +72,10 @@ ANTICOAGULANT_NAMES = (
 
 # --- Documented non-anticoagulants ----------------------------------------
 
-#: Antiplatelet agents. These are recorded explicitly rather than left to the
-#: fallback because they are the genuinely confusable case: they are
-#: antithrombotics that are often held before surgery, and a model asked "is
-#: this a blood thinner?" may well say yes.
-#:
-#: The policy speaks specifically of "anticoagulant medication", and
-#: antiplatelets are a distinct pharmacological class, so they do NOT trigger
-#: Rule 3. That is a clinical policy judgement, not a technical one -- if the
-#: center intends antiplatelets to require a perioperative plan too, move this
-#: set into ANTICOAGULANT_NAMES above and nothing else needs to change.
+#: Antiplatelet agents. Recorded explicitly because they are the confusable
+#: case -- a model asked "is this a blood thinner?" may well say yes -- but the
+#: policy speaks of anticoagulants, a distinct class, so they do not trigger
+#: Rule 3. To change that, move this set into ANTICOAGULANT_NAMES above.
 ANTIPLATELETS = {
     "aspirin",
     "asa",
@@ -115,14 +102,10 @@ THROMBOLYTICS = {
     "urokinase",
 }
 
-#: Common chronic-disease medications that routinely appear in a pre-op
-#: medication list and are unambiguously not anticoagulants. Enumerating these
-#: is purely an optimisation: every name resolved here is one that never needs
-#: a model call. Recording them by drug class rather than by the names that
-#: happen to appear in any one dataset keeps the list honest reference data.
-#:
-#: Positive identification always wins over this set (see `lookup`), so adding
-#: a name here can never mask an anticoagulant.
+#: Common chronic-disease medications that are unambiguously not
+#: anticoagulants. Purely an optimisation -- every name here is one that never
+#: needs a model call. Positive identification always wins over this set (see
+#: `lookup`), so adding a name here can never mask an anticoagulant.
 CARDIOVASCULAR = {
     "lisinopril", "enalapril", "ramipril", "benazepril", "captopril",
     "losartan", "valsartan", "olmesartan", "irbesartan", "candesartan",
@@ -218,7 +201,7 @@ def tokenize(name: str | None) -> list[str]:
     """Split a medication name into comparable lowercase word tokens.
 
     Strips dosage and formulation noise: "Eliquis 5mg BID" -> ["eliquis", "mg",
-    "bid"], "warfarin sodium" -> ["warfarin", "sodium"].
+    "bid"].
     """
 
     if not name:
@@ -227,19 +210,17 @@ def tokenize(name: str | None) -> list[str]:
 
 
 def lookup(name: str | None) -> bool | None:
-    """Classify a medication name against the reference lists.
+    """Classify a name against the reference lists.
 
-    Returns True for a known anticoagulant, False for a name explicitly known
-    not to be one, and None when the name is not in either list -- the signal
-    to fall back to the model.
+    True for a known anticoagulant, False for a name explicitly known not to be
+    one, None when it is in neither -- the signal to fall back to the model.
     """
 
     tokens = tokenize(name)
     if not tokens:
         return None
 
-    # Positive identification wins: a combination product naming an
-    # anticoagulant is still an anticoagulant.
+    # A combination product naming an anticoagulant is still an anticoagulant.
     if any(token in ANTICOAGULANT_NAMES for token in tokens):
         return True
     if any(token in NON_ANTICOAGULANT_NAMES for token in tokens):

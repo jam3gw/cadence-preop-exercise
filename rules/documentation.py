@@ -16,11 +16,11 @@ from __future__ import annotations
 
 from core import (
     DOCUMENTS_SOURCE,
-    describe_present,
     ClassifiedDocument,
     RuleContext,
     TriageIssue,
     build_issue,
+    describe_present,
     most_recent,
 )
 
@@ -38,8 +38,7 @@ def evaluate(ctx: RuleContext) -> list[TriageIssue]:
 def _evaluate_history_and_physical(ctx: RuleContext) -> list[TriageIssue]:
     candidates = ctx.documents_with_role("H_AND_P")
 
-    # An H&P with no usable date can't satisfy a 30-day window, so it counts as
-    # missing rather than present-but-unverifiable.
+    # No usable date cannot satisfy a 30-day window, so it counts as missing.
     hp = most_recent(candidates)
     if hp is None:
         return [
@@ -56,17 +55,15 @@ def _evaluate_history_and_physical(ctx: RuleContext) -> list[TriageIssue]:
 
     procedure_date = ctx.procedure_date
     if procedure_date is None:
-        # The window is not evaluable. The missing procedure date is itself a
-        # blocking issue, but it belongs to MISSING_REQUIRED_DATA -- reporting
-        # it here too would double-count the same root cause.
+        # Not evaluable. core.py reports the missing date; repeating it here
+        # would double-count one root cause.
         return []
 
     assert hp.doc_date is not None  # guaranteed by most_recent
     days_prior = (procedure_date - hp.doc_date).days
 
     if days_prior < 0:
-        # Dated after the procedure. Treated as unusable rather than silently
-        # accepted: the policy's default for anything unclear is follow-up.
+        # Dated after the procedure: unusable rather than silently accepted.
         return [
             build_issue(
                 CATEGORY,
@@ -109,8 +106,7 @@ def _evaluate_surgical_consent(ctx: RuleContext) -> list[TriageIssue]:
             )
         ]
 
-    # The policy requires a *signed* consent, so an unsigned or ambiguous
-    # consent is not sufficient -- only an affirmative signature clears it.
+    # Only an affirmative signature clears a *signed* consent requirement.
     if any(consent.signed is True for consent in consents):
         return []
 
