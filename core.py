@@ -83,7 +83,11 @@ class ProcedureInfo(BaseModel):
 
     case_id: str | None = None
     procedure_type: str | None = None
-    procedure_risk: ProcedureRisk | None = None
+    # Deliberately `str` rather than `ProcedureRisk`: an upstream system can
+    # send a risk level we don't recognise, and that is a triage finding to be
+    # reported, not a parse error that drops the whole submission. Rule 2 owns
+    # validating this against `ProcedureRisk`.
+    procedure_risk: str | None = None
     procedure_date: str | None = None
     is_elective: bool | None = None
     location: str | None = None

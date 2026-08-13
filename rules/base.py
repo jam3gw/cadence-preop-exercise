@@ -19,6 +19,7 @@ from typing import Literal, Protocol
 from core import (
     Document,
     IssueCategory,
+    LabResult,
     PatientSubmission,
     TriageIssue,
     TriageIssueEvidence,
@@ -35,6 +36,7 @@ DocumentRole = Literal[
 
 # Evidence paths are dotted/indexed paths into the submission payload.
 DOCUMENTS_SOURCE = "documents"
+LABS_SOURCE = "labs"
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,28 @@ class ClassifiedDocument:
 
 
 @dataclass(frozen=True)
+class LabRef:
+    """A lab result paired with its position in the submission.
+
+    Unlike `documents[].type`, `labs[].code` is a machine-generated value from a
+    controlled vocabulary, so rules match on it directly rather than asking a
+    model what a result is. `display` is the free-text field and is not used for
+    matching.
+    """
+
+    index: int
+    lab: LabResult
+
+    @property
+    def effective_date(self) -> date | None:
+        return parse_date(self.lab.effective_at)
+
+    @property
+    def source(self) -> str:
+        return f"{LABS_SOURCE}[{self.index}]"
+
+
+@dataclass(frozen=True)
 class RuleContext:
     """Everything a rule is allowed to see."""
 
@@ -78,9 +102,18 @@ class RuleContext:
     def documents_with_role(self, role: DocumentRole) -> list[ClassifiedDocument]:
         return [doc for doc in self.documents if doc.role == role]
 
+    @property
+    def labs(self) -> list[LabRef]:
+        return [LabRef(index=index, lab=lab) for index, lab in enumerate(self.submission.labs)]
+
 
 class Rule(Protocol):
-    """Evaluate one policy rule and return the issues it found."""
+    """Evaluate one policy rule and return the issues it found.
+
+    A rule reports findings; it never decides the final status. Severity is the
+    assembler's job and follows from issue category -- an acute safety exclusion
+    means NOT_CLEARED, any other issue means NEEDS_FOLLOW_UP, none means READY.
+    """
 
     def __call__(self, ctx: RuleContext) -> list[TriageIssue]: ...
 
@@ -123,6 +156,19 @@ def most_recent(documents: list[ClassifiedDocument]) -> ClassifiedDocument | Non
     if not dated:
         return None
     return max(dated, key=lambda doc: (doc.doc_date, -doc.index))
+
+
+def most_recent_lab(labs: list[LabRef]) -> LabRef | None:
+    """Return the newest dated lab result, or `None` if none carry a usable date.
+
+    Ties break toward the earlier position in the submission so the choice is
+    stable across runs.
+    """
+
+    dated = [ref for ref in labs if ref.effective_date is not None]
+    if not dated:
+        return None
+    return max(dated, key=lambda ref: (ref.effective_date, -ref.index))
 
 
 def build_issue(
