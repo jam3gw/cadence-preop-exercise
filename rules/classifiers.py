@@ -5,18 +5,20 @@ Two things in a submission resist deterministic interpretation:
 `documents[].type` is free text produced by many source systems ("PREOP - H and
 P - signed", "Scanned Hist & Phys (H&P) (external)", "Imported: Consult H&P",
 ...). Treating it as an enum is brittle, so the whole document list for a case
-goes to the model in one call, which labels each `doc_id` with the policy role
-it serves.
+goes to the model in one call, which labels each document by a short `ref`
+with the policy role it serves.
 
 Medication names are an open vocabulary with no reference data in this repo.
 Those are resolved against the curated list in `rules.medications` first, and
 only names it does not know reach the model -- see `resolve_medications`.
 
 In both cases the model returns nothing but small enum labels keyed by an
-identifier we gave it, never an index and never prose that reaches an issue.
-Returned keys are validated against the real input before use, so a
-hallucinated id cannot corrupt an evidence path, and every rule's phrasing
-stays deterministic.
+identifier we gave it, never prose that reaches an issue. Returned keys are
+validated against the real input before use, so a bad key cannot corrupt an
+evidence path, and every rule's phrasing stays deterministic. Those keys are
+kept deliberately short: a model asked to echo a 36-character UUID will
+eventually mistype one, and a mistyped key is indistinguishable from a
+hallucinated one.
 """
 
 from __future__ import annotations
@@ -60,7 +62,7 @@ class ClassificationRefusedError(RuntimeError):
 class ClassifiedDocumentModel(BaseModel):
     """One document's classification as returned by the model."""
 
-    doc_id: str
+    ref: int
     role: Literal["H_AND_P", "SURGICAL_CONSENT", "ANTICOAG_PLAN", "OTHER"]
     signed: bool | None = None
     plan_is_clear: bool | None = None
@@ -132,6 +134,14 @@ def _structured_call(
 def build_classifier_payload(documents: list[Document]) -> list[dict[str, object]]:
     """Model-facing view of the documents.
 
+    Documents are keyed by a short sequential `ref`, not by their `doc_id`.
+    The ids in real submissions are 36-character UUIDs, and asking a model to
+    copy one back exactly is asking for a transcription error it has no way to
+    catch -- observed in practice as `...5eed-aee7-...` coming back as
+    `...5eed-ae7a-...`, which the reconciler below then discarded as a
+    hallucinated id, throwing away a correct classification. A one- or
+    two-digit ref removes that failure mode, and costs fewer tokens.
+
     Deliberately omits `date`: recency is the rules' job, and withholding dates
     keeps the model from quietly deciding a document is "too old to count"
     instead of just naming what it is.
@@ -139,12 +149,12 @@ def build_classifier_payload(documents: list[Document]) -> list[dict[str, object
 
     return [
         {
-            "doc_id": doc.doc_id,
+            "ref": index + 1,
             "type": doc.type,
             "author": doc.author,
             "text": (doc.text or "")[:MAX_TEXT_CHARS],
         }
-        for doc in documents
+        for index, doc in enumerate(documents)
     ]
 
 
@@ -206,31 +216,34 @@ def classify_documents(
 ) -> list[ClassifiedDocument]:
     """Run `classifier` and reconcile its output against the real document list.
 
-    Any `doc_id` the model returns that we didn't hand it is dropped (a
-    hallucinated id, not a hallucinated role). Any document the model fails to
-    classify falls back to OTHER rather than being dropped, so every input
-    document is always represented in the output, at its original index.
+    Refs are 1-based positions in the list we sent. Anything outside that range
+    is discarded, and any document the model fails to classify falls back to
+    OTHER rather than being dropped, so every input document is represented in
+    the output at its original index. That fallback is safe in the sense that
+    an unlabelled document can only ever cause a requirement to look unmet --
+    it can never clear a patient -- but it is silent, which is why the ref
+    scheme above matters: the failure it hides looks exactly like a document
+    that was never in the submission.
     """
 
     if not documents:
         return []
 
-    known_ids = {doc.doc_id for doc in documents}
-
-    labels: dict[str | None, tuple[DocumentRole, bool | None, bool | None]] = {}
+    labels: dict[int, tuple[DocumentRole, bool | None, bool | None]] = {}
     for item in classifier(documents):
-        if item.doc_id not in known_ids:
+        index = item.ref - 1
+        if not 0 <= index < len(documents):
             continue
         # Each judgement is only meaningful for the role it belongs to; forcing
         # the others to None stops a confused model from attaching a signature
         # verdict to an H&P, or plan clarity to a consent.
         signed = item.signed if item.role == "SURGICAL_CONSENT" else None
         plan_is_clear = item.plan_is_clear if item.role == "ANTICOAG_PLAN" else None
-        labels[item.doc_id] = (item.role, signed, plan_is_clear)
+        labels[index] = (item.role, signed, plan_is_clear)
 
     classified: list[ClassifiedDocument] = []
     for index, doc in enumerate(documents):
-        role, signed, plan_is_clear = labels.get(doc.doc_id, ("OTHER", None, None))
+        role, signed, plan_is_clear = labels.get(index, ("OTHER", None, None))
         classified.append(
             ClassifiedDocument(
                 index=index,
